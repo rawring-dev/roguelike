@@ -1,6 +1,8 @@
 const std = @import("std");
 
 pub fn build(b: *std.Build) !void {
+    const optimize = b.standardOptimizeOption(.{});
+
     const exe = b.addExecutable(.{
         .name = "cart",
         .root_module = b.createModule(.{
@@ -9,7 +11,7 @@ pub fn build(b: *std.Build) !void {
                 .cpu_arch = .wasm32,
                 .os_tag = .freestanding,
             }),
-            .optimize = b.standardOptimizeOption(.{}),
+            .optimize = optimize,
         }),
     });
 
@@ -27,4 +29,20 @@ pub fn build(b: *std.Build) !void {
 
     const step_run = b.step("run", "compile and run the cart");
     step_run.dependOn(&run_exe.step);
+
+    const viewer = b.addExecutable(.{
+        .name = "dungeon-viewer",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/dungeon_viewer.zig"),
+            .target = b.standardTargetOptions(.{}),
+            .optimize = optimize,
+        }),
+    });
+    b.installArtifact(viewer);
+
+    const run_viewer = b.addRunArtifact(viewer);
+    if (b.args) |args| run_viewer.addArgs(args);
+
+    const step_viewer = b.step("run-viewer", "generate a dungeon and print it as text (optional: seed)");
+    step_viewer.dependOn(&run_viewer.step);
 }
