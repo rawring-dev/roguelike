@@ -139,8 +139,8 @@ pub const BitMap = struct {
     }
 };
 
-pub const level_width: i32 = 80;
-pub const level_height: i32 = 80;
+pub const level_width: i32 = 40;
+pub const level_height: i32 = 40;
 
 const min_leaf = 16;
 const max_leaf = 24;
@@ -187,10 +187,6 @@ const Rng = struct {
         return self.next() % 100 < percent;
     }
 };
-
-fn step_sign(v: i32) i32 {
-    return if (v > 0) 1 else if (v < 0) -1 else 0;
-}
 
 const Generator = struct {
     dungeon: *Dungeon,
@@ -298,11 +294,11 @@ const Generator = struct {
                 const rem_x = to_x - x;
                 const rem_y = to_y - y;
                 if (@abs(rem_x) > @abs(rem_y)) {
-                    x += step_sign(rem_x);
+                    x += std.math.sign(rem_x);
                 } else if (rem_y != 0) {
-                    y += step_sign(rem_y);
+                    y += std.math.sign(rem_y);
                 } else {
-                    x += step_sign(rem_x);
+                    x += std.math.sign(rem_x);
                 }
             }
 
@@ -315,11 +311,11 @@ const Generator = struct {
 
     fn carve_l_path(self: *Generator, from_x: i32, from_y: i32, to_x: i32, to_y: i32) !void {
         var x = from_x;
-        while (x != to_x) : (x += step_sign(to_x - from_x)) {
+        while (x != to_x) : (x += std.math.sign(to_x - from_x)) {
             try self.dungeon.bitmap.set_rect(1, 1, x, from_y);
         }
         var y = from_y;
-        while (y != to_y) : (y += step_sign(to_y - from_y)) {
+        while (y != to_y) : (y += std.math.sign(to_y - from_y)) {
             try self.dungeon.bitmap.set_rect(1, 1, to_x, y);
         }
     }
