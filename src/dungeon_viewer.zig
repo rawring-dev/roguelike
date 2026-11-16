@@ -4,7 +4,8 @@ const dungeon_generation = @import("dungeon_generation.zig");
 const default_seed: u64 = 1;
 
 pub fn main(init: std.process.Init) !void {
-    var arg_it = std.process.Args.Iterator.init(init.minimal.args);
+    var arg_it = try std.process.Args.Iterator.initAllocator(init.minimal.args, init.gpa);
+    defer arg_it.deinit();
     _ = arg_it.next();
 
     var seed: u64 = default_seed;
