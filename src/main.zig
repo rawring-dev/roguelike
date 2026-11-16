@@ -5,6 +5,12 @@ var state: State = undefined;
 var static_error: ?anyerror = null;
 
 export fn start() void {
+    w4.PALETTE.* = .{
+        0x20202f,
+        0x80808f,
+        0xf0f0ff,
+        0xd00040,
+    };
     state = State.init() catch |e| {
         w4.trace(@errorName(e));
         static_error = e;
