@@ -139,8 +139,8 @@ pub const BitMap = struct {
     }
 };
 
-pub const level_width: i32 = 80;
-pub const level_height: i32 = 80;
+pub const level_width: i32 = 40;
+pub const level_height: i32 = 40;
 
 const min_leaf = 16;
 const max_leaf = 24;
