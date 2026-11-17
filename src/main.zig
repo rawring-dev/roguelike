@@ -11,11 +11,7 @@ export fn start() void {
         0xf0f0ff,
         0xd00040,
     };
-    state = State.init() catch |e| {
-        w4.trace(@errorName(e));
-        static_error = e;
-        return;
-    };
+    state.init();
 }
 
 export fn update() void {

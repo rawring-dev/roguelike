@@ -16,8 +16,7 @@ pub fn main(init: std.process.Init) !void {
         };
     }
 
-    var dungeon = try dungeon_generation.generate_dungeon(init.gpa, seed);
-    defer dungeon.deinit();
+    var dungeon = dungeon_generation.generate_dungeon(seed);
 
     var stdout_buffer: [4096]u8 = undefined;
     var stdout = std.Io.File.stdout().writerStreaming(init.io, &stdout_buffer);
