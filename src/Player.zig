@@ -28,5 +28,6 @@ pub fn draw(self: *const Self) void {
     _ = self;
     const w = 8;
     const h = 8;
+    w4.DRAW_COLORS.* = 4;
     w4.blit(&sprite, w4.SCREEN_SIZE / 2 - (w / 2), w4.SCREEN_SIZE / 2 - (h / 2), w, h, w4.BLIT_1BPP);
 }
