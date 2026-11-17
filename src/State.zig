@@ -5,8 +5,6 @@ const w4 = @import("wasm4.zig");
 const std = @import("std");
 
 const Dungeon = dungeon_generation.Dungeon;
-const Bitmap = dungeon_generation.Bitmap;
-
 const BUFFER_SIZE = 1024 * 4;
 
 player: Player,
@@ -14,15 +12,14 @@ level_buffer: [BUFFER_SIZE]u8 = undefined,
 fixed_buffer_allocator: std.heap.FixedBufferAllocator,
 tiles: TileMap = @splat(@splat(TileType.empty)),
 
-pub fn init() !Self {
-    var self = Self{ .player = .init(), .fixed_buffer_allocator = undefined };
+pub fn init(self: *Self) void {
     self.reset_allocator();
-    var dungeon = try dungeon_generation.generate_dungeon(self.fixed_buffer_allocator.allocator(), 1);
-    defer dungeon.deinit();
-    generate_dungeon(&self.tiles, dungeon);
-    return self;
-}
+    self.player = .init();
+    self.tiles = @splat(@splat(TileType.empty));
 
+    const dungeon = dungeon_generation.generate_dungeon(1);
+    generate_dungeon(&self.tiles, dungeon);
+}
 pub fn update(self: *Self) void {
     // update
     self.player.update();
