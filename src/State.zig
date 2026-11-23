@@ -135,22 +135,22 @@ fn draw_dungeon(self: *Self) void {
             w4.DRAW_COLORS.* = switch (tile) {
                 .empty => 0,
                 .hallway_floor => 2,
-                .room_floor => 3,
-                .wall => 4,
+                .room_floor => 2,
+                .wall => 3,
                 .replace_me => unreachable,
             };
             switch (tile) {
                 .hallway_floor => {
-                    w4.blit(&sprite_0, @as(i32, @intCast(x)) * TILE_SIZE - self.player.x, @as(i32, @intCast(y)) * TILE_SIZE - self.player.y, 8, 8, w4.BLIT_1BPP);
-                    w4.blit(&sprite_0, @as(i32, @intCast(x)) * TILE_SIZE - self.player.x + 8, @as(i32, @intCast(y)) * TILE_SIZE - self.player.y, 8, 8, w4.BLIT_1BPP);
-                    w4.blit(&sprite_0, @as(i32, @intCast(x)) * TILE_SIZE - self.player.x + 8, @as(i32, @intCast(y)) * TILE_SIZE - self.player.y + 8, 8, 8, w4.BLIT_1BPP);
-                    w4.blit(&sprite_0, @as(i32, @intCast(x)) * TILE_SIZE - self.player.x, @as(i32, @intCast(y)) * TILE_SIZE - self.player.y + 8, 8, 8, w4.BLIT_1BPP);
-                },
-                .room_floor => {
                     w4.blit(&sprite_1, @as(i32, @intCast(x)) * TILE_SIZE - self.player.x, @as(i32, @intCast(y)) * TILE_SIZE - self.player.y, 8, 8, w4.BLIT_1BPP);
                     w4.blit(&sprite_1, @as(i32, @intCast(x)) * TILE_SIZE - self.player.x + 8, @as(i32, @intCast(y)) * TILE_SIZE - self.player.y, 8, 8, w4.BLIT_1BPP);
                     w4.blit(&sprite_1, @as(i32, @intCast(x)) * TILE_SIZE - self.player.x + 8, @as(i32, @intCast(y)) * TILE_SIZE - self.player.y + 8, 8, 8, w4.BLIT_1BPP);
                     w4.blit(&sprite_1, @as(i32, @intCast(x)) * TILE_SIZE - self.player.x, @as(i32, @intCast(y)) * TILE_SIZE - self.player.y + 8, 8, 8, w4.BLIT_1BPP);
+                },
+                .room_floor => {
+                    w4.blit(&sprite_0, @as(i32, @intCast(x)) * TILE_SIZE - self.player.x, @as(i32, @intCast(y)) * TILE_SIZE - self.player.y, 8, 8, w4.BLIT_1BPP);
+                    w4.blit(&sprite_0, @as(i32, @intCast(x)) * TILE_SIZE - self.player.x + 8, @as(i32, @intCast(y)) * TILE_SIZE - self.player.y, 8, 8, w4.BLIT_1BPP);
+                    w4.blit(&sprite_0, @as(i32, @intCast(x)) * TILE_SIZE - self.player.x + 8, @as(i32, @intCast(y)) * TILE_SIZE - self.player.y + 8, 8, 8, w4.BLIT_1BPP);
+                    w4.blit(&sprite_0, @as(i32, @intCast(x)) * TILE_SIZE - self.player.x, @as(i32, @intCast(y)) * TILE_SIZE - self.player.y + 8, 8, 8, w4.BLIT_1BPP);
                 },
                 .wall => |sides| {
                     if (sides.up) {
