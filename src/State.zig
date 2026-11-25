@@ -1,21 +1,31 @@
 const Self = @This();
 const Player = @import("Player.zig");
+const Cat = @import("Cat.zig");
+const BulletYarn = @import("BulletYarn.zig");
+const SlotArray = @import("slot_array.zig").SlotArray;
+const BulletsInterface = @import("bullets_interface.zig").Interface;
 const dungeon_generation = @import("dungeon_generation.zig");
 const w4 = @import("wasm4.zig");
 const std = @import("std");
 
 const Dungeon = dungeon_generation.Dungeon;
 const BUFFER_SIZE = 1024 * 4;
+const YarnBullets = SlotArray(BulletYarn, 50);
 
 player: Player,
 level_buffer: [BUFFER_SIZE]u8 = undefined,
 fixed_buffer_allocator: std.heap.FixedBufferAllocator,
 tiles: TileMap = @splat(@splat(TileType.empty)),
+cats: std.ArrayList(Cat),
+yarn_bullets: YarnBullets,
 
 pub fn init(self: *Self) void {
     self.reset_allocator();
     self.player = .init();
     self.tiles = @splat(@splat(TileType.empty));
+    self.cats = .empty;
+    //TESTING
+    self.cats.append(self.fixed_buffer_allocator.allocator(), .init(23, 23)) catch {};
 
     const dungeon = dungeon_generation.generate_dungeon(1);
     generate_dungeon(&self.tiles, dungeon);
@@ -23,9 +33,34 @@ pub fn init(self: *Self) void {
 pub fn update(self: *Self) void {
     // update
     self.player.update();
+    const yarn_bullets_interface = BulletsInterface(YarnBullets, BulletYarn){ .ptr = &self.yarn_bullets, .vtable = &.{
+        .append = &YarnBullets.append,
+    } };
+    for (self.cats.items) |*cat| {
+        cat.update(self.player.x, self.player.y, yarn_bullets_interface);
+    }
+    {
+        var iter = self.yarn_bullets.iterator();
+        while (iter.next()) |bullet| {
+            if (bullet.bullet.lifetime == 0) {
+                self.yarn_bullets.buffer[iter.index - 1] = null;
+                continue;
+            }
+            bullet.update();
+        }
+    }
     // draw
     self.draw_dungeon();
     self.player.draw();
+    for (self.cats.items) |*cat| {
+        cat.draw(self.player.camera_x, self.player.camera_y);
+    }
+    {
+        var iter = self.yarn_bullets.iterator();
+        while (iter.next()) |bullet| {
+            bullet.draw(self.player.camera_x, self.player.camera_y);
+        }
+    }
 }
 
 const WallSides = packed struct {
@@ -141,37 +176,37 @@ fn draw_dungeon(self: *Self) void {
             };
             switch (tile) {
                 .hallway_floor => {
-                    w4.blit(&sprite_1, @as(i32, @intCast(x)) * TILE_SIZE - self.player.x, @as(i32, @intCast(y)) * TILE_SIZE - self.player.y, 8, 8, w4.BLIT_1BPP);
-                    w4.blit(&sprite_1, @as(i32, @intCast(x)) * TILE_SIZE - self.player.x + 8, @as(i32, @intCast(y)) * TILE_SIZE - self.player.y, 8, 8, w4.BLIT_1BPP);
-                    w4.blit(&sprite_1, @as(i32, @intCast(x)) * TILE_SIZE - self.player.x + 8, @as(i32, @intCast(y)) * TILE_SIZE - self.player.y + 8, 8, 8, w4.BLIT_1BPP);
-                    w4.blit(&sprite_1, @as(i32, @intCast(x)) * TILE_SIZE - self.player.x, @as(i32, @intCast(y)) * TILE_SIZE - self.player.y + 8, 8, 8, w4.BLIT_1BPP);
+                    w4.blit(&sprite_1, @as(i32, @intCast(x)) * TILE_SIZE - self.player.camera_x, @as(i32, @intCast(y)) * TILE_SIZE - self.player.camera_y, 8, 8, w4.BLIT_1BPP);
+                    w4.blit(&sprite_1, @as(i32, @intCast(x)) * TILE_SIZE - self.player.camera_x + 8, @as(i32, @intCast(y)) * TILE_SIZE - self.player.camera_y, 8, 8, w4.BLIT_1BPP);
+                    w4.blit(&sprite_1, @as(i32, @intCast(x)) * TILE_SIZE - self.player.camera_x + 8, @as(i32, @intCast(y)) * TILE_SIZE - self.player.camera_y + 8, 8, 8, w4.BLIT_1BPP);
+                    w4.blit(&sprite_1, @as(i32, @intCast(x)) * TILE_SIZE - self.player.camera_x, @as(i32, @intCast(y)) * TILE_SIZE - self.player.camera_y + 8, 8, 8, w4.BLIT_1BPP);
                 },
                 .room_floor => {
-                    w4.blit(&sprite_0, @as(i32, @intCast(x)) * TILE_SIZE - self.player.x, @as(i32, @intCast(y)) * TILE_SIZE - self.player.y, 8, 8, w4.BLIT_1BPP);
-                    w4.blit(&sprite_0, @as(i32, @intCast(x)) * TILE_SIZE - self.player.x + 8, @as(i32, @intCast(y)) * TILE_SIZE - self.player.y, 8, 8, w4.BLIT_1BPP);
-                    w4.blit(&sprite_0, @as(i32, @intCast(x)) * TILE_SIZE - self.player.x + 8, @as(i32, @intCast(y)) * TILE_SIZE - self.player.y + 8, 8, 8, w4.BLIT_1BPP);
-                    w4.blit(&sprite_0, @as(i32, @intCast(x)) * TILE_SIZE - self.player.x, @as(i32, @intCast(y)) * TILE_SIZE - self.player.y + 8, 8, 8, w4.BLIT_1BPP);
+                    w4.blit(&sprite_0, @as(i32, @intCast(x)) * TILE_SIZE - self.player.camera_x, @as(i32, @intCast(y)) * TILE_SIZE - self.player.camera_y, 8, 8, w4.BLIT_1BPP);
+                    w4.blit(&sprite_0, @as(i32, @intCast(x)) * TILE_SIZE - self.player.camera_x + 8, @as(i32, @intCast(y)) * TILE_SIZE - self.player.camera_y, 8, 8, w4.BLIT_1BPP);
+                    w4.blit(&sprite_0, @as(i32, @intCast(x)) * TILE_SIZE - self.player.camera_x + 8, @as(i32, @intCast(y)) * TILE_SIZE - self.player.camera_y + 8, 8, 8, w4.BLIT_1BPP);
+                    w4.blit(&sprite_0, @as(i32, @intCast(x)) * TILE_SIZE - self.player.camera_x, @as(i32, @intCast(y)) * TILE_SIZE - self.player.camera_y + 8, 8, 8, w4.BLIT_1BPP);
                 },
                 .wall => |sides| {
                     if (sides.up) {
-                        w4.blit(&wall_2, @as(i32, @intCast(x)) * TILE_SIZE - self.player.x, @as(i32, @intCast(y)) * TILE_SIZE - self.player.y, 8, 8, w4.BLIT_1BPP);
-                        w4.blit(&wall_2, @as(i32, @intCast(x)) * TILE_SIZE - self.player.x + 8, @as(i32, @intCast(y)) * TILE_SIZE - self.player.y, 8, 8, w4.BLIT_1BPP);
+                        w4.blit(&wall_2, @as(i32, @intCast(x)) * TILE_SIZE - self.player.camera_x, @as(i32, @intCast(y)) * TILE_SIZE - self.player.camera_y, 8, 8, w4.BLIT_1BPP);
+                        w4.blit(&wall_2, @as(i32, @intCast(x)) * TILE_SIZE - self.player.camera_x + 8, @as(i32, @intCast(y)) * TILE_SIZE - self.player.camera_y, 8, 8, w4.BLIT_1BPP);
                     }
                     if (sides.right) {
-                        w4.blit(&wall_1, @as(i32, @intCast(x)) * TILE_SIZE - self.player.x + 8, @as(i32, @intCast(y)) * TILE_SIZE - self.player.y, 8, 8, w4.BLIT_1BPP);
-                        w4.blit(&wall_1, @as(i32, @intCast(x)) * TILE_SIZE - self.player.x + 8, @as(i32, @intCast(y)) * TILE_SIZE - self.player.y + 8, 8, 8, w4.BLIT_1BPP);
+                        w4.blit(&wall_1, @as(i32, @intCast(x)) * TILE_SIZE - self.player.camera_x + 8, @as(i32, @intCast(y)) * TILE_SIZE - self.player.camera_y, 8, 8, w4.BLIT_1BPP);
+                        w4.blit(&wall_1, @as(i32, @intCast(x)) * TILE_SIZE - self.player.camera_x + 8, @as(i32, @intCast(y)) * TILE_SIZE - self.player.camera_y + 8, 8, 8, w4.BLIT_1BPP);
                     }
                     if (sides.left) {
-                        w4.blit(&wall_3, @as(i32, @intCast(x)) * TILE_SIZE - self.player.x, @as(i32, @intCast(y)) * TILE_SIZE - self.player.y, 8, 8, w4.BLIT_1BPP);
-                        w4.blit(&wall_3, @as(i32, @intCast(x)) * TILE_SIZE - self.player.x, @as(i32, @intCast(y)) * TILE_SIZE - self.player.y + 8, 8, 8, w4.BLIT_1BPP);
+                        w4.blit(&wall_3, @as(i32, @intCast(x)) * TILE_SIZE - self.player.camera_x, @as(i32, @intCast(y)) * TILE_SIZE - self.player.camera_y, 8, 8, w4.BLIT_1BPP);
+                        w4.blit(&wall_3, @as(i32, @intCast(x)) * TILE_SIZE - self.player.camera_x, @as(i32, @intCast(y)) * TILE_SIZE - self.player.camera_y + 8, 8, 8, w4.BLIT_1BPP);
                     }
                     if (sides.down) {
-                        w4.blit(&wall_0, @as(i32, @intCast(x)) * TILE_SIZE - self.player.x, @as(i32, @intCast(y)) * TILE_SIZE - self.player.y + 8, 8, 8, w4.BLIT_1BPP);
-                        w4.blit(&wall_0, @as(i32, @intCast(x)) * TILE_SIZE - self.player.x + 8, @as(i32, @intCast(y)) * TILE_SIZE - self.player.y + 8, 8, 8, w4.BLIT_1BPP);
+                        w4.blit(&wall_0, @as(i32, @intCast(x)) * TILE_SIZE - self.player.camera_x, @as(i32, @intCast(y)) * TILE_SIZE - self.player.camera_y + 8, 8, 8, w4.BLIT_1BPP);
+                        w4.blit(&wall_0, @as(i32, @intCast(x)) * TILE_SIZE - self.player.camera_x + 8, @as(i32, @intCast(y)) * TILE_SIZE - self.player.camera_y + 8, 8, 8, w4.BLIT_1BPP);
                     }
                 },
                 else => {
-                    w4.rect(@as(i32, @intCast(x)) * TILE_SIZE - self.player.x, @as(i32, @intCast(y)) * TILE_SIZE - self.player.y, TILE_SIZE, TILE_SIZE);
+                    w4.rect(@as(i32, @intCast(x)) * TILE_SIZE - self.player.camera_x, @as(i32, @intCast(y)) * TILE_SIZE - self.player.camera_y, TILE_SIZE, TILE_SIZE);
                 },
             }
         }
