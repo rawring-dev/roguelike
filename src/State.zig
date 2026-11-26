@@ -5,17 +5,24 @@ const BulletYarn = @import("BulletYarn.zig");
 const SlotArray = @import("slot_array.zig").SlotArray;
 const BulletsInterface = @import("bullets_interface.zig").Interface;
 const dungeon_generation = @import("dungeon_generation.zig");
+const collision = @import("collision.zig");
+const pathfinding = @import("pathfinding.zig");
 const w4 = @import("wasm4.zig");
 const std = @import("std");
 
 const Dungeon = dungeon_generation.Dungeon;
+const BitMap = dungeon_generation.BitMap;
 const BUFFER_SIZE = 1024 * 4;
 const YarnBullets = SlotArray(BulletYarn, 50);
+const TILE_SIZE = 16;
+const TILE_SIZE_F: f32 = 16;
 
 player: Player,
 level_buffer: [BUFFER_SIZE]u8 = undefined,
 fixed_buffer_allocator: std.heap.FixedBufferAllocator,
 tiles: TileMap = @splat(@splat(TileType.empty)),
+blockers: BitMap = .{},
+pathfinder: pathfinding.Pathfinder = .{},
 cats: std.ArrayList(Cat),
 yarn_bullets: YarnBullets,
 
@@ -23,21 +30,42 @@ pub fn init(self: *Self) void {
     self.reset_allocator();
     self.player = .init();
     self.tiles = @splat(@splat(TileType.empty));
+    self.blockers = .{};
     self.cats = .empty;
-    //TESTING
-    self.cats.append(self.fixed_buffer_allocator.allocator(), .init(23, 23)) catch {};
+    self.yarn_bullets = .{};
 
     const dungeon = dungeon_generation.generate_dungeon(1);
-    generate_dungeon(&self.tiles, dungeon);
+    generate_dungeon(&self.tiles, &self.blockers, dungeon);
+
+    // Spawn the player in the first room and the test cat in another room.
+    const rooms = dungeon.room_slice();
+    if (rooms.len > 0) {
+        const room = rooms[0];
+        self.player.place_centered(tile_center(room.center_x()), tile_center(room.center_y()));
+    }
+    if (rooms.len > 1) {
+        const room = rooms[1];
+        self.cats.append(self.fixed_buffer_allocator.allocator(), .init_at_center(
+            tile_center(room.center_x()),
+            tile_center(room.center_y()),
+        )) catch {};
+    }
 }
 pub fn update(self: *Self) void {
     // update
-    self.player.update();
+    self.player.update(&self.blockers, TILE_SIZE_F);
     const yarn_bullets_interface = BulletsInterface(YarnBullets, BulletYarn){ .ptr = &self.yarn_bullets, .vtable = &.{
         .append = &YarnBullets.append,
     } };
     for (self.cats.items) |*cat| {
-        cat.update(self.player.x, self.player.y, yarn_bullets_interface);
+        cat.update(
+            self.player.x,
+            self.player.y,
+            yarn_bullets_interface,
+            &self.blockers,
+            &self.pathfinder,
+            TILE_SIZE_F,
+        );
     }
     {
         var iter = self.yarn_bullets.iterator();
@@ -47,6 +75,16 @@ pub fn update(self: *Self) void {
                 continue;
             }
             bullet.update();
+
+            const bullet_rect = collision.Rect{
+                .x = bullet.bullet.x,
+                .y = bullet.bullet.y,
+                .w = 8,
+                .h = 8,
+            };
+            if (collision.overlaps_solid(&self.blockers, bullet_rect, TILE_SIZE_F)) {
+                self.yarn_bullets.buffer[iter.index - 1] = null;
+            }
         }
     }
     // draw
@@ -84,7 +122,7 @@ const TileTypeEnum = std.meta.Tag(TileType);
 const TileMap = [dungeon_generation.level_height][dungeon_generation.level_width]TileType;
 
 // Take in tiles as an outparam to save on memory
-fn generate_dungeon(tiles: *TileMap, dungeon: Dungeon) void {
+fn generate_dungeon(tiles: *TileMap, blockers: *BitMap, dungeon: Dungeon) void {
     {
         var y: i32 = 0;
         while (y < dungeon_generation.level_height) : (y += 1) {
@@ -147,6 +185,15 @@ fn generate_dungeon(tiles: *TileMap, dungeon: Dungeon) void {
             }
         }
     }
+
+    for (tiles, 0..) |row, y| {
+        for (row, 0..) |tile, x| {
+            switch (tile) {
+                .room_floor, .hallway_floor => blockers.set_rect(1, 1, @intCast(x), @intCast(y)),
+                else => {},
+            }
+        }
+    }
 }
 
 fn is_touching(tiles: *const TileMap, tile: TileTypeEnum, x: usize, y: usize) bool {
@@ -157,7 +204,6 @@ fn is_touching(tiles: *const TileMap, tile: TileTypeEnum, x: usize, y: usize) bo
 }
 
 fn draw_dungeon(self: *Self) void {
-    const TILE_SIZE = 16;
     const sprite_0 = [8]u8{ 0xee, 0xff, 0xee, 0x44, 0xee, 0xff, 0xee, 0x44 };
     const sprite_1 = [8]u8{ 0x67, 0xfe, 0x3b, 0x29, 0xbd, 0xf7, 0x4d, 0xc5 };
     const wall_0 = [8]u8{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xab, 0x66, 0x00 };
@@ -216,4 +262,8 @@ fn draw_dungeon(self: *Self) void {
 fn reset_allocator(self: *Self) void {
     // discard all previous allocations
     self.fixed_buffer_allocator = std.heap.FixedBufferAllocator.init(&self.level_buffer);
+}
+
+fn tile_center(tile_coord: i32) f32 {
+    return (@as(f32, @floatFromInt(tile_coord)) + 0.5) * TILE_SIZE_F;
 }

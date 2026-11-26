@@ -1,5 +1,7 @@
 const Self = @This();
 const w4 = @import("wasm4.zig");
+const collision = @import("collision.zig");
+const BitMap = @import("dungeon_generation.zig").BitMap;
 
 const w = 8;
 const h = 8;
@@ -23,19 +25,38 @@ pub fn init() Self {
     };
 }
 
-pub fn update(self: *Self) void {
-    if ((w4.GAMEPAD1.* & w4.BUTTON_LEFT) != 0) {
-        self.x -= 1;
-    }
-    if ((w4.GAMEPAD1.* & w4.BUTTON_RIGHT) != 0) {
-        self.x += 1;
-    }
-    if ((w4.GAMEPAD1.* & w4.BUTTON_UP) != 0) {
-        self.y -= 1;
-    }
-    if ((w4.GAMEPAD1.* & w4.BUTTON_DOWN) != 0) {
-        self.y += 1;
-    }
+pub fn place_centered(self: *Self, center_x: f32, center_y: f32) void {
+    self.x = center_x - @as(f32, @floatFromInt(w)) / 2.0;
+    self.y = center_y - @as(f32, @floatFromInt(h)) / 2.0;
+    self.update_camera();
+}
+
+pub fn update(self: *Self, blockers: *const BitMap, tile_size: f32) void {
+    var dx: f32 = 0;
+    var dy: f32 = 0;
+
+    if ((w4.GAMEPAD1.* & w4.BUTTON_LEFT) != 0) dx -= 1;
+    if ((w4.GAMEPAD1.* & w4.BUTTON_RIGHT) != 0) dx += 1;
+    if ((w4.GAMEPAD1.* & w4.BUTTON_UP) != 0) dy -= 1;
+    if ((w4.GAMEPAD1.* & w4.BUTTON_DOWN) != 0) dy += 1;
+
+    self.move(dx, dy, blockers, tile_size);
+    self.update_camera();
+}
+
+fn move(self: *Self, dx: f32, dy: f32, blockers: *const BitMap, tile_size: f32) void {
+    const rect = collision.Rect{
+        .x = self.x,
+        .y = self.y,
+        .w = @floatFromInt(w),
+        .h = @floatFromInt(h),
+    };
+    const moved = collision.move_rect(blockers, tile_size, rect, dx, dy);
+    self.x = moved.x;
+    self.y = moved.y;
+}
+
+fn update_camera(self: *Self) void {
     self.camera_x = @as(i32, @trunc(self.x)) - half_width;
     self.camera_y = @as(i32, @trunc(self.y)) - half_height;
 }
