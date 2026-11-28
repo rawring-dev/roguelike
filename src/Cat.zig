@@ -34,6 +34,7 @@ const player_distance: f32 = 64;
 const sight_distance: f32 = 12 * 16;
 const repath_interval: u32 = 30;
 const max_path = 64;
+const max_health: f32 = 5;
 
 x: f32,
 y: f32,
@@ -43,6 +44,7 @@ path: [max_path]pathfinding.Cell = undefined,
 path_len: usize = 0,
 path_index: usize = 0,
 repath_timer: u32 = 0,
+health: f32 = max_health,
 
 pub fn init(x: i32, y: i32) Self {
     return .{ .x = @floatFromInt(x), .y = @floatFromInt(y), .bullet_timer = 0 };
@@ -174,6 +176,13 @@ fn tile_of(world_x: f32, world_y: f32, tile_size: f32) pathfinding.Cell {
         .y = @intFromFloat(@floor(world_y / tile_size)),
     };
 }
+
+// returns true if this entity died
+pub fn damage(self: *Self, points: f32) void {
+    self.health -= points;
+    return self.health <= 0;
+}
+
 pub fn draw(self: *const Self, camera_x: i32, camera_y: i32) void {
     const w = 8;
     const h = 8;

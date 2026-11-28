@@ -20,6 +20,10 @@ pub fn SlotArray(T: type, length: usize) type {
                 }
                 return null;
             }
+
+            pub fn removeCurrent(self: *const Iterator) void {
+                self.buffer[self.index - 1] = null;
+            }
         };
 
         pub fn iterator(self: *Self) Iterator {
