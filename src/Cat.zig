@@ -178,7 +178,7 @@ fn tile_of(world_x: f32, world_y: f32, tile_size: f32) pathfinding.Cell {
 }
 
 // returns true if this entity died
-pub fn damage(self: *Self, points: f32) void {
+pub fn damage(self: *Self, points: f32) bool {
     self.health -= points;
     return self.health <= 0;
 }
