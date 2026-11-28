@@ -3,6 +3,8 @@ const w4 = @import("wasm4.zig");
 const collision = @import("collision.zig");
 const BitMap = @import("dungeon_generation.zig").BitMap;
 
+pub const max_health: f32 = 100;
+
 const w = 8;
 const h = 8;
 const sprite = [8]u8{ 0x00, 0x24, 0x24, 0x00, 0x24, 0x18, 0x00, 0x00 };
@@ -13,7 +15,7 @@ x: f32,
 y: f32,
 camera_x: i32,
 camera_y: i32,
-health: f32,
+health: f32 = max_health,
 
 pub fn init() Self {
     return .{
@@ -21,7 +23,6 @@ pub fn init() Self {
         .y = half_height,
         .camera_x = 0,
         .camera_y = 0,
-        .health = 100,
     };
 }
 
@@ -63,4 +64,33 @@ fn update_camera(self: *Self) void {
 pub fn draw(self: *const Self) void {
     w4.DRAW_COLORS.* = 4;
     w4.blit(&sprite, @as(i32, @trunc(self.x)) - self.camera_x, @as(i32, @trunc(self.y)) - self.camera_y, w, h, w4.BLIT_1BPP);
+}
+
+pub fn collisionRect(self: *const Self) collision.Rect {
+    return collision.Rect{
+        .x = self.x,
+        .y = self.y,
+        .w = 8,
+        .h = 8,
+    };
+}
+
+pub fn damage(self: *Self, points: f32) void {
+    self.health -= points;
+    if (self.health <= 0) {
+        self.die();
+    }
+}
+
+fn die(self: *Self) void {
+    //TODO
+    _ = self;
+}
+
+pub fn drawHealth(self: *const Self) void {
+    const health_dist: u32 = if (self.health >= 0) @intFromFloat(@as(f32, @floatFromInt(w4.SCREEN_SIZE)) * (self.health / max_health)) else 0;
+    w4.DRAW_COLORS.* = 4; // red
+    w4.rect(0, 0, health_dist, 4);
+    w4.DRAW_COLORS.* = 1;
+    w4.rect(@intCast(health_dist), 0, w4.SCREEN_SIZE - health_dist, 4);
 }

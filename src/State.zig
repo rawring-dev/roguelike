@@ -71,19 +71,19 @@ pub fn update(self: *Self) void {
         var iter = self.yarn_bullets.iterator();
         while (iter.next()) |bullet| {
             if (bullet.bullet.lifetime == 0) {
-                self.yarn_bullets.buffer[iter.index - 1] = null;
+                iter.removeCurrent();
                 continue;
             }
             bullet.update();
 
-            const bullet_rect = collision.Rect{
-                .x = bullet.bullet.x,
-                .y = bullet.bullet.y,
-                .w = 8,
-                .h = 8,
-            };
+            const bullet_rect = bullet.collisionRect();
             if (collision.overlaps_solid(&self.blockers, bullet_rect, TILE_SIZE_F)) {
-                self.yarn_bullets.buffer[iter.index - 1] = null;
+                iter.removeCurrent();
+            }
+            const player_rect = self.player.collisionRect();
+            if (bullet_rect.overlaps(player_rect)) {
+                self.player.damage(BulletYarn.damage);
+                iter.removeCurrent();
             }
         }
     }
@@ -99,6 +99,7 @@ pub fn update(self: *Self) void {
             bullet.draw(self.player.camera_x, self.player.camera_y);
         }
     }
+    self.player.drawHealth();
 }
 
 const WallSides = packed struct {
